@@ -5,10 +5,10 @@
       redis = require("redis"),
       nconf = require('nconf'),
       path = require('path'),
-      syslog = require('node-syslog'),
+      http = require('http'),
       async = require('async'),
       mysql = require('mysql'),
-      subClient, pubClient, config,
+      subClient, pubClient, config, httpPort = 8281, httpServer,
       moment = require('moment-timezone'),
       underscore = require('underscore'),
       Sequelize = require("sequelize"),
@@ -32,6 +32,9 @@
             );
           }
         });
+      },
+      handleRequest = function(request, response){
+        response.end(JSON.stringify({status: 'ok'}));
       },
       getConfiguration = function() {
         config = nconf
@@ -58,9 +61,15 @@
         });
 
       },
+      initHttpServer = function() {
+        httpServer = http.createServer(handleRequest);
+        httpServer.listen(httpPort, function(){
+          //Callback triggered when server is successfully listening. Hurray!
+          console.log("health check server listening on: http://localhost:%s", httpPort);
+        });
+      },
       init = function() {
-        syslog.init("crawler", syslog.LOG_PID || syslog.LOG_ODELAY, syslog.LOG_LOCAL0);
-        syslog.log(syslog.LOG_INFO, "Server started");
+        console.log("Server started");
         if (process.argv[2]) {
           if (fs.lstatSync(process.argv[2])) {
               configFile = require(process.argv[2]);
@@ -72,8 +81,8 @@
         }
 
         getConfiguration();
-
         connectDB();
+        initHttpServer();
 
         subClient = redis.createClient(
           config.get("redis:port"),
@@ -187,7 +196,7 @@
                 );
               };
 
-              if (uids) {
+              if (uids.length) {
                 async.map(
                   uids,
                   function(uid, cback) {

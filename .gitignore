@@ -3,3 +3,4 @@ config/settings.json
 access.log
 public/
 tmp/
+uid-server.log 
